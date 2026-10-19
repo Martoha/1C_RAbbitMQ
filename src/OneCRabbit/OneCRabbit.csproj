@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net48;net8.0;net9.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>OneCRabbit</RootNamespace>
+    <AssemblyName>OneCRabbit</AssemblyName>
+    <Net48Platform Condition="'$(Net48Platform)' == ''">x64</Net48Platform>
+    <PlatformTarget Condition="'$(TargetFramework)' == 'net48'">$(Net48Platform)</PlatformTarget>
+    <Version>1.0.0</Version>
+    <ComVisible>false</ComVisible>
+    <SignAssembly Condition="Exists('$(MSBuildThisFileDirectory)OneCRabbit.snk')">true</SignAssembly>
+    <AssemblyOriginatorKeyFile Condition="Exists('$(MSBuildThisFileDirectory)OneCRabbit.snk')">OneCRabbit.snk</AssemblyOriginatorKeyFile>
+    <Description>COM-прослойка RabbitMQ для 1С</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\net48-$(Net48Platform)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\net48-$(Net48Platform)\</IntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>OneCRabbit.Tests, PublicKey=002400000480000014010000060200000024000052534131000800000100010083EACFC50484879040ECD7D47D2EAFE44BCE02BA44F77ABD28084063CA5CF9A39020E9D9481F9186380725E76E6CDF0A68A27AC1D4463112C6FB97BD48C6CAD98186997B01F87B17161AAC5BA26195B97C50EBF05E7513A5C047A0355DD2EC9BBE2C33441770CCADCCA3EB7A030B1F36E1DD2FC95793813FDE8FF202E1D94E10B3BCBE1FF4CD01AA7409C4F62D2AE548E5198AE5217FB146B551871F2D2E7678A6D73AC52C4422A0F3800D3A5D16D5D9373DF5A7AD946F94D69058618B1DD20AD91F7C6DE081B6E7A4CF0C614B8D5AA923FC511D971616DCADCB7E845A747FE34CCD7E03B553B6B8E1556F9C8754F638DBF1338BBC104C23853E3A6AF23063A8</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
+
+  <Target Name="CopyToDist" AfterTargets="Build" Condition="'$(TargetFramework)' == 'net48' and '$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <_DistDir>$(MSBuildThisFileDirectory)..\..\dist\</_DistDir>
+      <_DistDir Condition="'$(PlatformTarget)' == 'x86'">$(MSBuildThisFileDirectory)..\..\dist\x86\</_DistDir>
+      <_RegisterScript>register-com.ps1</_RegisterScript>
+      <_RegisterScript Condition="'$(PlatformTarget)' == 'x86'">register-com-x86.ps1</_RegisterScript>
+    </PropertyGroup>
+    <ItemGroup>
+      <_DistDll Include="$(TargetDir)*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_DistDll)" DestinationFolder="$(_DistDir)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\scripts\$(_RegisterScript)" DestinationFiles="$(_DistDir)register-com.ps1" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\..\examples\usage.bsl" DestinationFolder="$(_DistDir)" SkipUnchangedFiles="false" />
+  </Target>
+</Project>
