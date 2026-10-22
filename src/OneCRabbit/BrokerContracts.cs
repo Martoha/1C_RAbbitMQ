@@ -28,7 +28,8 @@ internal sealed class Delivery
         string exchange,
         string routingKey,
         bool redelivered,
-        byte[] body)
+        byte[] body,
+        IReadOnlyDictionary<string, string>? headers = null)
     {
         DeliveryTag = deliveryTag;
         ConsumerTag = consumerTag;
@@ -36,6 +37,7 @@ internal sealed class Delivery
         RoutingKey = routingKey;
         Redelivered = redelivered;
         Body = body;
+        Headers = HeaderCopy.From(headers);
     }
 
     public ulong DeliveryTag { get; }
@@ -44,13 +46,14 @@ internal sealed class Delivery
     public string RoutingKey { get; }
     public bool Redelivered { get; }
     public byte[] Body { get; }
+    public IReadOnlyDictionary<string, string> Headers { get; }
 }
 
 internal interface IBrokerChannel
 {
     void DeclareQueue(string queue, bool durable, IReadOnlyDictionary<string, object>? arguments);
     void DeclareExisting(string queue);
-    void Publish(string exchange, string routingKey, byte[] body, bool persistent);
+    void Publish(string exchange, string routingKey, byte[] body, bool persistent, IReadOnlyDictionary<string, string>? headers);
     byte[]? TryGetMessage(string queue);
     void SetPrefetch(ushort prefetchCount);
     string Subscribe(string queue, string consumerTag, Action<Delivery> onMessage);
@@ -71,4 +74,19 @@ internal interface IBrokerConnection
 internal interface IBrokerConnector
 {
     IBrokerConnection Connect(BrokerSettings settings);
+}
+
+internal static class HeaderCopy
+{
+    internal static Dictionary<string, string> From(IReadOnlyDictionary<string, string>? headers)
+    {
+        var copy = new Dictionary<string, string>();
+        if (headers == null)
+            return copy;
+
+        foreach (var header in headers)
+            copy.Add(header.Key, header.Value);
+
+        return copy;
+    }
 }

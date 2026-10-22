@@ -140,6 +140,27 @@ public class RabbitClientTests
     }
 
     [Fact]
+    public void Headers_are_sent_and_read_back()
+    {
+        var client = ConnectedClient(out var connection);
+        client.SetHeader("sign", "abc");
+        client.SetHeader("source", "1c");
+        client.Subscribe("orders", "tag");
+        client.Publish("orders", "тело");
+
+        var headers = connection.Channel.Published.Single().Headers;
+        Assert.NotNull(headers);
+        Assert.Equal("abc", headers!["sign"]);
+        Assert.Equal("1c", headers["source"]);
+
+        connection.Channel.Deliver(4, Encoding.UTF8.GetBytes("тело"), headers: headers);
+        var message = client.Receive();
+        Assert.Equal("abc", message.Header("sign"));
+        Assert.Equal("1c", message.Header("source"));
+        Assert.Equal("", message.Header("missing"));
+    }
+
+    [Fact]
     public void DeclareExisting_checks_queue_without_recreating_it()
     {
         var client = ConnectedClient(out var connection);

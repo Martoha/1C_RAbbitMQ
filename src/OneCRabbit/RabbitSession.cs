@@ -14,6 +14,7 @@ internal sealed class RabbitSession
     private string _connectionName = "1C";
     private Encoding _readEncoding = BodyEncoding.Utf8;
     private Encoding _writeEncoding = BodyEncoding.Utf8;
+    private readonly Dictionary<string, string> _headers = new();
     private ushort _prefetch;
     private string? _consumerTag;
 
@@ -30,6 +31,14 @@ internal sealed class RabbitSession
     internal void SetReadEncoding(string name) => _readEncoding = BodyEncoding.Resolve(name);
 
     internal void SetWriteEncoding(string name) => _writeEncoding = BodyEncoding.Resolve(name);
+
+    internal void SetHeader(string name, string? value)
+    {
+        name = RequireName(name, "Не задано имя атрибута.");
+        _headers[name] = value ?? "";
+    }
+
+    internal void ClearHeaders() => _headers.Clear();
 
     internal string ReadEncodingName => BodyEncoding.CanonicalName(_readEncoding);
 
@@ -147,7 +156,7 @@ internal sealed class RabbitSession
         routingKey = RequireName(routingKey, "Не задан ключ маршрутизации.");
         var payload = _writeEncoding.GetBytes(body ?? "");
         lock (_gate)
-            RequireChannel().Publish(exchange?.Trim() ?? "", routingKey, payload, persistent: true);
+            RequireChannel().Publish(exchange?.Trim() ?? "", routingKey, payload, persistent: true, CopyHeaders());
     }
 
     internal string GetMessage(string queue)
@@ -245,7 +254,7 @@ internal sealed class RabbitSession
         {
             var pending = FindUnacked(tag);
             var channel = RequireChannel();
-            channel.Publish("", queue, pending.Body, persistent: true);
+            channel.Publish("", queue, pending.Body, persistent: true, pending.Headers);
             channel.Ack(tag);
         }
 
@@ -364,7 +373,11 @@ internal sealed class RabbitSession
             pending.ConsumerTag,
             pending.Exchange,
             pending.RoutingKey,
-            pending.Redelivered);
+            pending.Redelivered,
+            pending.Headers);
+
+    private Dictionary<string, string>? CopyHeaders() =>
+        _headers.Count == 0 ? null : new Dictionary<string, string>(_headers);
 
     private sealed class PendingMessage
     {
@@ -376,6 +389,7 @@ internal sealed class RabbitSession
             RoutingKey = delivery.RoutingKey;
             Redelivered = delivery.Redelivered;
             Body = delivery.Body;
+            Headers = delivery.Headers;
         }
 
         public ulong DeliveryTag { get; }
@@ -384,6 +398,7 @@ internal sealed class RabbitSession
         public string RoutingKey { get; }
         public bool Redelivered { get; }
         public byte[] Body { get; }
+        public IReadOnlyDictionary<string, string> Headers { get; }
     }
 
     private static string RequireName(string? value, string message)

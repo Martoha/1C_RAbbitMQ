@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -97,10 +98,22 @@ internal sealed class RabbitChannel : IBrokerChannel
         }
     }
 
-    public void Publish(string exchange, string routingKey, byte[] body, bool persistent)
+    public void Publish(
+        string exchange,
+        string routingKey,
+        byte[] body,
+        bool persistent,
+        IReadOnlyDictionary<string, string>? headers)
     {
         var properties = _model.CreateBasicProperties();
         properties.Persistent = persistent;
+        if (headers != null && headers.Count > 0)
+        {
+            properties.Headers = new Dictionary<string, object>();
+            foreach (var header in headers)
+                properties.Headers[header.Key] = header.Value;
+        }
+
         _model.BasicPublish(exchange, routingKey, mandatory: false, basicProperties: properties, body: body);
     }
 
@@ -124,7 +137,8 @@ internal sealed class RabbitChannel : IBrokerChannel
                 delivery.Exchange,
                 delivery.RoutingKey,
                 delivery.Redelivered,
-                delivery.Body.ToArray()));
+                delivery.Body.ToArray(),
+                ReadHeaders(delivery.BasicProperties?.Headers)));
         };
 
         return _model.BasicConsume(queue, autoAck: false, consumerTag, consumer);
@@ -149,6 +163,26 @@ internal sealed class RabbitChannel : IBrokerChannel
             _model.Dispose();
         }
     }
+
+    private static Dictionary<string, string> ReadHeaders(IDictionary<string, object>? headers)
+    {
+        var result = new Dictionary<string, string>();
+        if (headers == null)
+            return result;
+
+        foreach (var header in headers)
+            result[header.Key] = HeaderValue(header.Value);
+
+        return result;
+    }
+
+    private static string HeaderValue(object? value) => value switch
+    {
+        null => "",
+        string text => text,
+        byte[] bytes => Encoding.UTF8.GetString(bytes),
+        _ => value.ToString() ?? ""
+    };
 
     private static readonly MethodInfo PassiveDeclare = typeof(IModel)
         .GetMethods()

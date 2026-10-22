@@ -53,7 +53,7 @@ internal sealed class FakeChannel : IBrokerChannel
 {
     public List<(string Queue, bool Durable, string? Type)> Queues { get; } = new();
     public List<string> Existing { get; } = new();
-    public List<(string Exchange, string RoutingKey, byte[] Body, bool Persistent)> Published { get; } = new();
+    public List<(string Exchange, string RoutingKey, byte[] Body, bool Persistent, IReadOnlyDictionary<string, string>? Headers)> Published { get; } = new();
     public Queue<byte[]?> Incoming { get; } = new();
     public int CloseCount { get; private set; }
     public ushort? Prefetch { get; private set; }
@@ -75,8 +75,13 @@ internal sealed class FakeChannel : IBrokerChannel
 
     public void DeclareExisting(string queue) => Existing.Add(queue);
 
-    public void Publish(string exchange, string routingKey, byte[] body, bool persistent) =>
-        Published.Add((exchange, routingKey, body, persistent));
+    public void Publish(
+        string exchange,
+        string routingKey,
+        byte[] body,
+        bool persistent,
+        IReadOnlyDictionary<string, string>? headers) =>
+        Published.Add((exchange, routingKey, body, persistent, headers));
 
     public byte[]? TryGetMessage(string queue) => Incoming.Count == 0 ? null : Incoming.Dequeue();
 
@@ -100,9 +105,14 @@ internal sealed class FakeChannel : IBrokerChannel
 
     public void Nack(ulong deliveryTag, bool requeue) => Nacks.Add((deliveryTag, requeue));
 
-    public void Deliver(ulong deliveryTag, byte[] body, bool redelivered = false, string routingKey = "orders")
+    public void Deliver(
+        ulong deliveryTag,
+        byte[] body,
+        bool redelivered = false,
+        string routingKey = "orders",
+        IReadOnlyDictionary<string, string>? headers = null)
     {
-        _onMessage?.Invoke(new Delivery(deliveryTag, ActiveConsumerTag ?? "", "", routingKey, redelivered, body));
+        _onMessage?.Invoke(new Delivery(deliveryTag, ActiveConsumerTag ?? "", "", routingKey, redelivered, body, headers));
     }
 
     public void Close() => CloseCount++;

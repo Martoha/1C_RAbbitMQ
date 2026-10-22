@@ -32,6 +32,10 @@ public sealed class RabbitClient
 
     public void SetWriteEncoding(string name) => _session.SetWriteEncoding(name);
 
+    public void SetHeader(string name, string value) => _session.SetHeader(name, value);
+
+    public void ClearHeaders() => _session.ClearHeaders();
+
     public string ReadEncoding() => _session.ReadEncodingName;
 
     public string WriteEncoding() => _session.WriteEncodingName;

@@ -87,6 +87,13 @@ internal sealed class DebugConsole
             case "write-encoding":
                 SetWriteEncoding(rest);
                 return true;
+            case "header":
+                SetHeader(line);
+                return true;
+            case "clear-headers":
+                _client.ClearHeaders();
+                Console.WriteLine("Атрибуты сообщения очищены");
+                return true;
             case "subscribe":
                 Subscribe(rest);
                 return true;
@@ -213,6 +220,16 @@ internal sealed class DebugConsole
         Console.WriteLine("Запись в очередь: " + _client.WriteEncoding());
     }
 
+    private void SetHeader(string line)
+    {
+        var parts = line.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+            throw new ArgumentException("Формат: header <имя> <значение>");
+
+        _client.SetHeader(parts[1], parts[2]);
+        Console.WriteLine($"Атрибут {parts[1]}={parts[2]}");
+    }
+
     private void Subscribe(string[] rest)
     {
         Require(rest, 1, "subscribe <очередь> [тег]");
@@ -236,6 +253,8 @@ internal sealed class DebugConsole
         Console.WriteLine("Обменник: " + message.Exchange);
         Console.WriteLine("Ключ: " + message.RoutingKey);
         Console.WriteLine("Повторная доставка: " + (message.Redelivered ? "да" : "нет"));
+        foreach (var name in message.HeaderNames().Split(", ", StringSplitOptions.RemoveEmptyEntries))
+            Console.WriteLine($"Атрибут {name}: {message.Header(name)}");
         Status();
     }
 
@@ -304,6 +323,8 @@ internal sealed class DebugConsole
             prefetch <число>                    0 — все сообщения, максимум 65535
             read-encoding <utf-8|windows-1251>  как раскодировать тело из очереди
             write-encoding <utf-8|windows-1251> как закодировать тело при отправке
+            header <имя> <значение>             атрибут сообщения, например sign
+            clear-headers                       убрать атрибуты следующих Publish
             subscribe <очередь> [тег]           Subscribe
             receive                             Receive, без подтверждения
             ack <метка>

@@ -17,7 +17,8 @@ public sealed class RabbitMessage
         string consumerTag,
         string exchange,
         string routingKey,
-        bool redelivered)
+        bool redelivered,
+        IReadOnlyDictionary<string, string>? headers)
     {
         HasMessage = true;
         Body = body;
@@ -26,7 +27,10 @@ public sealed class RabbitMessage
         Exchange = exchange;
         RoutingKey = routingKey;
         Redelivered = redelivered;
+        _headers = HeaderCopy.From(headers);
     }
+
+    private readonly Dictionary<string, string> _headers = new();
 
     public bool HasMessage { get; }
 
@@ -41,4 +45,14 @@ public sealed class RabbitMessage
     public string RoutingKey { get; } = "";
 
     public bool Redelivered { get; }
+
+    public string Header(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+
+        return _headers.TryGetValue(name, out var value) ? value : "";
+    }
+
+    public string HeaderNames() => string.Join(", ", _headers.Keys);
 }
